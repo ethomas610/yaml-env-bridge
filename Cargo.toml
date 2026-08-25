@@ -1,0 +1,6 @@
+[package]
+name = "yaml-env-bridge"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Streaming converter between nested YAML config and flat env files"
