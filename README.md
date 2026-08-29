@@ -48,11 +48,20 @@ a path given with `-o` / `--output`.
 
 Config files are usually small, but this tool is also meant to work on the
 generated ones - the giant flattened env dumps some platforms produce, or
-YAML files assembled by templating. Both converters read their input one
-line at a time with a `BufRead`, write output incrementally, and only ever
-keep a small stack of the currently-open parent keys in memory (bounded by
+YAML files assembled by templating. `--to env` reads its input one line at
+a time with a `BufRead`, writes output incrementally, and only ever keeps
+a small stack of the currently-open parent keys in memory (bounded by
 nesting depth, not file size). A 5 KB config and a 5 GB one use the same
 amount of memory.
+
+`--to yaml` can't offer that same guarantee. Two `KEY=VALUE` lines that
+belong under the same parent might not be adjacent - a hand-edited or
+resorted env file, or one merged from several sources - and there's no way
+to know a key group is complete until the input ends. So this direction
+builds a tree of the keys seen so far (sized to the number of distinct
+keys, not the byte size of the input) and writes the nested YAML once at
+EOF. Non-contiguous groups are merged correctly; the cost is that this
+direction is no longer bounded-memory streaming the way `--to env` is.
 
 ## Current limitations
 
@@ -60,9 +69,6 @@ This is an early skeleton, not a full YAML implementation:
 
 - Only block-style mappings of scalars are supported: no sequences, flow
   collections (`{a: 1}`), anchors/aliases, or multi-line block scalars.
-- `--to yaml` assumes keys sharing a prefix arrive as consecutive lines,
-  which is what `--to env` produces. Feeding it hand-written or reordered
-  env files can produce a mapping key more than once in the output.
 - Comment stripping is a straight-line heuristic, not a quote-aware
   scanner, so a `#` inside certain quoted strings can be misread as the
   start of a comment.
