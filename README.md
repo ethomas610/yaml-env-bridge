@@ -44,6 +44,32 @@ debug: true
 Both directions read from a file argument or stdin, and write to stdout or
 a path given with `-o` / `--output`.
 
+Sequences flatten using the item's index as a path segment, the same way a
+map key would:
+
+```
+$ cat config.yaml
+servers:
+  - name: web1
+    port: 80
+  - name: web2
+    port: 81
+tags:
+  - a
+  - b
+
+$ yaml-env-bridge --to env config.yaml
+SERVERS__0__NAME=web1
+SERVERS__0__PORT=80
+SERVERS__1__NAME=web2
+SERVERS__1__PORT=81
+TAGS__0=a
+TAGS__1=b
+```
+
+`--to yaml` reverses this: a group of children keyed exactly "0", "1", ...,
+"n-1" is written back as a sequence rather than a mapping.
+
 ## Why streaming matters here
 
 Config files are usually small, but this tool is also meant to work on the
@@ -67,11 +93,15 @@ direction is no longer bounded-memory streaming the way `--to env` is.
 
 This is an early skeleton, not a full YAML implementation:
 
-- Only block-style mappings of scalars are supported: no sequences, flow
-  collections (`{a: 1}`), anchors/aliases, or multi-line block scalars.
+- Only block-style mappings and block-style sequences of scalars or
+  mappings are supported: no flow collections (`{a: 1}`, `[1, 2]`),
+  anchors/aliases, nested lists-of-lists, or multi-line block scalars.
 - Comment stripping is a straight-line heuristic, not a quote-aware
   scanner, so a `#` inside certain quoted strings can be misread as the
   start of a comment.
+- Sequences and mappings that use small integers as keys are ambiguous by
+  design: `--to yaml` treats any contiguous "0".."n-1" key group as a
+  sequence, even if it started life as a mapping with those literal keys.
 
 None of these are silent data loss - worst case is a rejected or malformed
 YAML document you can inspect - but they're worth knowing about before
