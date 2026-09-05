@@ -170,14 +170,47 @@ fn split_key_value(content: &str) -> (&str, Option<&str>) {
     }
 }
 
+/// Strips a trailing ` #comment` from a scalar value, tracking whether the
+/// scanner is inside a quoted string so a '#' that's part of the quoted
+/// content isn't mistaken for the start of a comment. Handles the two YAML
+/// quoting styles: double-quoted strings use a backslash to escape the next
+/// character (including an embedded `"`), single-quoted strings escape a
+/// quote by doubling it (`''`).
+///
+/// Byte-level scanning is safe here even though `value` may contain
+/// multi-byte UTF-8: every byte checked against (`"`, `'`, `#`, `\`, ASCII
+/// whitespace) is a single-byte ASCII value, and UTF-8 continuation/leading
+/// bytes never collide with those, so a slice boundary always lands on a
+/// char boundary.
 fn strip_comment(value: &str) -> &str {
-    // don't strip inside quoted scalars; this is a shortcut, not a full
-    // quote-aware scanner, so a '#' after an escaped quote can still fool it
-    if value.starts_with('"') || value.starts_with('\'') {
-        return value;
+    let bytes = value.as_bytes();
+    let mut quote: Option<u8> = None;
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let c = bytes[i];
+        match quote {
+            Some(q) => {
+                if q == b'"' && c == b'\\' {
+                    i += 1; // skip the escaped character
+                } else if c == q {
+                    if q == b'\'' && bytes.get(i + 1) == Some(&b'\'') {
+                        i += 1; // doubled quote inside a single-quoted string
+                    } else {
+                        quote = None;
+                    }
+                }
+            }
+            None => {
+                if c == b'"' || c == b'\'' {
+                    quote = Some(c);
+                } else if c == b'#' && (i == 0 || bytes[i - 1].is_ascii_whitespace()) {
+                    return value[..i].trim_end();
+                }
+            }
+        }
+        i += 1;
     }
-    match value.find(" #") {
-        Some(idx) => value[..idx].trim_end(),
-        None => value,
-    }
+
+    value.trim_end()
 }

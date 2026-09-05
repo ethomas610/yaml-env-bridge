@@ -96,9 +96,6 @@ This is an early skeleton, not a full YAML implementation:
 - Only block-style mappings and block-style sequences of scalars or
   mappings are supported: no flow collections (`{a: 1}`, `[1, 2]`),
   anchors/aliases, nested lists-of-lists, or multi-line block scalars.
-- Comment stripping is a straight-line heuristic, not a quote-aware
-  scanner, so a `#` inside certain quoted strings can be misread as the
-  start of a comment.
 - Sequences and mappings that use small integers as keys are ambiguous by
   design: `--to yaml` treats any contiguous "0".."n-1" key group as a
   sequence, even if it started life as a mapping with those literal keys.
