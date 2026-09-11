@@ -1,9 +1,8 @@
-mod env_to_yaml;
-mod yaml_to_env;
-
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
+
+use yaml_env_bridge::{env_to_yaml, yaml_to_env};
 
 enum Direction {
     YamlToEnv,

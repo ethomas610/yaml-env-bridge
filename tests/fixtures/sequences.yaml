@@ -1,0 +1,8 @@
+servers:
+  - name: web1
+    port: 80
+  - name: web2
+    port: 81
+tags:
+  - a
+  - b
