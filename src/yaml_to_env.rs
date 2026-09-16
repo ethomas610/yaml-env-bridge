@@ -21,6 +21,18 @@ use std::io::{BufRead, Write};
 /// Reads and writes line by line so the whole document is never held in
 /// memory at once. The only state kept between lines is a stack of open
 /// parent segments, bounded by nesting depth rather than input size.
+///
+/// A line that is exactly `---` at column 0 is treated as a YAML
+/// document-stream separator: the stack and root sequence counter are reset,
+/// and the next document is flattened as if it were its own input starting
+/// from an empty root. Keys from later documents are not namespaced against
+/// earlier ones, so a later document's `KEY=VALUE` line for a path already
+/// emitted simply appears again - the same "last one wins" behavior you get
+/// sourcing multiple env files in shell, and it lets a stream of a base
+/// document followed by override documents flatten the way you'd want it
+/// to. An explicit `...` document-end marker resets the same state and is
+/// otherwise ignored, since it's only ever followed by another `---` or the
+/// end of the stream.
 pub fn convert<R: BufRead, W: Write>(input: R, mut output: W) -> std::io::Result<()> {
     let mut stack: Vec<Frame> = Vec::new();
     let mut root_seq_next: usize = 0;
@@ -34,6 +46,12 @@ pub fn convert<R: BufRead, W: Write>(input: R, mut output: W) -> std::io::Result
 
         let indent = trimmed.len() - trimmed.trim_start().len();
         let content = trimmed.trim_start();
+
+        if indent == 0 && (content == "---" || content == "...") {
+            stack.clear();
+            root_seq_next = 0;
+            continue;
+        }
 
         if let Some(after_dash) = content.strip_prefix('-') {
             if after_dash.is_empty() || after_dash.starts_with(char::is_whitespace) {

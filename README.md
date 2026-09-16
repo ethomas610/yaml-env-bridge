@@ -70,6 +70,31 @@ TAGS__1=b
 `--to yaml` reverses this: a group of children keyed exactly "0", "1", ...,
 "n-1" is written back as a sequence rather than a mapping.
 
+`--to env` also accepts a multi-document YAML stream (documents separated by
+a line containing only `---`). Each document is flattened from an empty
+root, so a later document's key isn't namespaced against an earlier one -
+if both documents set the same path, the later `KEY=VALUE` line simply
+appears again after the earlier one, and expanding the result back with
+`--to yaml` lands on the later value, the same "last one wins" behavior
+you'd get sourcing multiple env files in a shell:
+
+```
+$ cat overrides.yaml
+defaults:
+  timeout: 30
+  retries: 3
+---
+defaults:
+  retries: 5
+region: us-east-1
+
+$ yaml-env-bridge --to env overrides.yaml
+DEFAULTS__TIMEOUT=30
+DEFAULTS__RETRIES=3
+DEFAULTS__RETRIES=5
+REGION=us-east-1
+```
+
 ## Why streaming matters here
 
 Config files are usually small, but this tool is also meant to work on the

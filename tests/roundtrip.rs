@@ -51,3 +51,64 @@ fn round_trips_sequences_of_mappings_and_scalars() {
 fn round_trips_root_level_sequence() {
     check_pair("root_sequence.yaml", "root_sequence.env");
 }
+
+#[test]
+fn multi_document_stream_flattens_each_document_from_an_empty_root() {
+    let yaml = "\
+defaults:
+  timeout: 30
+  retries: 3
+---
+defaults:
+  retries: 5
+region: us-east-1
+";
+
+    let expected = "\
+DEFAULTS__TIMEOUT=30
+DEFAULTS__RETRIES=3
+DEFAULTS__RETRIES=5
+REGION=us-east-1
+";
+
+    assert_eq!(to_env(yaml), expected);
+}
+
+#[test]
+fn later_document_wins_when_flattened_env_is_expanded_back_to_yaml() {
+    let yaml = "\
+defaults:
+  timeout: 30
+  retries: 3
+---
+defaults:
+  retries: 5
+region: us-east-1
+";
+
+    let expected = "\
+defaults:
+  timeout: 30
+  retries: 5
+region: us-east-1
+";
+
+    assert_eq!(to_yaml(&to_env(yaml)), expected);
+}
+
+#[test]
+fn document_end_marker_resets_state_like_a_separator() {
+    let yaml = "\
+a:
+  b: 1
+...
+c: 2
+";
+
+    let expected = "\
+A__B=1
+C=2
+";
+
+    assert_eq!(to_env(yaml), expected);
+}
